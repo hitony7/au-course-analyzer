@@ -1,0 +1,7 @@
+streamlit
+beautifulsoup4
+requests
+openai
+sentence-transformers
+scikit-learn
+python-dotenv
