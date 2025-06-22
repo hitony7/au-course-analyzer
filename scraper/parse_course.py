@@ -2,29 +2,36 @@ import requests
 from bs4 import BeautifulSoup
 
 def parse_course(course_url):
-    # Send a GET request to the course page
+    # Fetch the course page content
     response = requests.get(course_url)
-    
-    # Parse the HTML content using BeautifulSoup
     soup = BeautifulSoup(response.text, "html.parser")
 
-    # Extract the course title from the <h1> tag
-    title = soup.find("h1").text.strip()
+    # Extract course title
+    title = soup.find("h1").text.strip() if soup.find("h1") else "No title found"
 
-    # Extract learning outcomes by selecting all <li> elements within a <ul> with class "learning-outcomes"
-    learning_outcomes = [li.text.strip() for li in soup.select("ul.learning-outcomes li")]
+    # Grab the main content area
+    main = soup.find("main")
+    text = main.get_text(separator="\n") if main else ""
 
-    # Extract topics by selecting all <li> elements within a <ul> with class "topics"
-    topics = [li.text.strip() for li in soup.select("ul.topics li")]
+    # Try to extract Learning Outcomes by keyword
+    learning_outcomes = []
+    layout = ""
+    topics = []
 
-    # Extract course layout from a <div> with class "course-layout"
-    layout = soup.find("div", class_="course-layout").text.strip()
+    # Very rough segmentation based on known text patterns
+    for section in text.split("\n"):
+        section = section.strip()
+        if "Learning Outcomes" in section:
+            learning_outcomes.append(section)
+        elif "Topics Covered" in section or "Units" in section:
+            topics.append(section)
+        elif "Course Layout" in section or "Structure" in section:
+            layout += section + "\n"
 
-    # Return all extracted data as a dictionary
     return {
         "url": course_url,
         "title": title,
         "learning_outcomes": learning_outcomes,
         "topics": topics,
-        "layout": layout
+        "layout": layout.strip()
     }
