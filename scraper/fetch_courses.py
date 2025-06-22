@@ -1,22 +1,43 @@
-import requests
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
+import time
+import json
 
-def fetch_course_links(base_url):
-    # Send an HTTP GET request to the course catalog page
-    response = requests.get(base_url)
-    
-    # Parse the response HTML content using BeautifulSoup
-    soup = BeautifulSoup(response.text, "html.parser")
+def fetch_course_metadata(base_url):
+    # Set up headless browser
+    options = Options()
+    options.add_argument("--headless")
+    options.add_argument("--disable-gpu")
 
-    # Initialize an empty list to store the course links
-    course_links = []
+    # Launch browser and navigate
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    driver.get(base_url)
+    time.sleep(5)  # Allow JS to load
 
-    # Select all anchor tags with the class "course-link"
-    # NOTE: You may need to update the selector depending on AU's actual site structure
-    for a_tag in soup.select("a.course-link"):
-        href = a_tag.get("href")  # Extract the href attribute from the anchor tag
-        if href:
-            course_links.append(href)  # Add the link to the list if it's valid
+    soup = BeautifulSoup(driver.page_source, "html.parser")
+    driver.quit()
 
-    # Return the list of course URLs
-    return course_links
+    # Find all course blocks
+    course_data = []
+
+    for div in soup.select('div[itemtype="http://schema.org/Course"]'):
+        link = div.find("a", itemprop="url")
+        code = div.find("strong", itemprop="courseCode")
+        name = div.find("span", itemprop="name")
+
+        if link and code and name:
+            course_data.append({
+                "course_code": code.text.strip().rstrip(":"),
+                "course_name": name.text.strip(),
+                "url": link.get("href")
+            })
+
+    # Save to file
+    with open("au_courses.json", "w", encoding="utf-8") as f:
+        json.dump(course_data, f, indent=2)
+        print(f"✅ Saved {len(course_data)} course entries to 'au_courses.json'")
+
+    return course_data
