@@ -1,37 +1,84 @@
-import requests
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
+import os
+import time
+import json
+
 
 def parse_course(course_url):
-    # Fetch the course page content
-    response = requests.get(course_url)
-    soup = BeautifulSoup(response.text, "html.parser")
+    # Setup headless Chrome
+    options = Options()
+    options.add_argument("--headless")
+    options.add_argument("--disable-gpu")
 
-    # Extract course title
-    title = soup.find("h1").text.strip() if soup.find("h1") else "No title found"
+    driver = webdriver.Chrome(
+        service=Service(ChromeDriverManager().install()), options=options
+    )
+    driver.get(course_url)
 
-    # Grab the main content area
-    main = soup.find("main")
-    text = main.get_text(separator="\n") if main else ""
+    # Wait for JS-rendered content
+    time.sleep(3)
 
-    # Try to extract Learning Outcomes by keyword
-    learning_outcomes = []
-    layout = ""
-    topics = []
+    # Get page source
+    rendered_html = driver.page_source
+    driver.quit()
 
-    # Very rough segmentation based on known text patterns
-    for section in text.split("\n"):
-        section = section.strip()
-        if "Learning Outcomes" in section:
-            learning_outcomes.append(section)
-        elif "Topics Covered" in section or "Units" in section:
-            topics.append(section)
-        elif "Course Layout" in section or "Structure" in section:
-            layout += section + "\n"
+    # Extract course code from URL
+    course_code = course_url.strip("/").split("/")[-1].replace(".html", "")
 
-    return {
+    # Save raw HTML
+    os.makedirs("rendered_pages", exist_ok=True)
+    html_path = f"rendered_pages/{course_code}_full_page.html"
+    with open(html_path, "w", encoding="utf-8") as f:
+        f.write(rendered_html)
+        print(f"✅ Saved full page to '{html_path}'")
+
+    # Parse HTML with BeautifulSoup
+    soup = BeautifulSoup(rendered_html, "html.parser")
+
+    # Extract course title and code
+    course_code_text = soup.select_one("#content-title")
+    course_title_text = soup.select_one("#course-title")
+
+    data = {
         "url": course_url,
-        "title": title,
-        "learning_outcomes": learning_outcomes,
-        "topics": topics,
-        "layout": layout.strip()
+        "course_code": (
+            course_code_text.get_text(strip=True)
+            if course_code_text
+            else course_code.upper()
+        ),
+        "course_title": (
+            course_title_text.get_text(strip=True)
+            if course_title_text
+            else "No title found"
+        ),
     }
+
+    # Section mappings
+    sections = {
+        "overview": "#content-section-overview",
+        "outline": "#content-section-outline",
+        "learning_outcomes": "#content-section-outcomes",
+        "evaluation": "#content-section-evaluation",
+        "materials": "#content-section-materials",
+        "challenge": "#content-section-challenge",
+        "important_links": "#content-section-links",
+    }
+
+    for key, selector in sections.items():
+        section = soup.select_one(selector)
+        if section:
+            text = section.get_text(separator="\n", strip=True)
+            data[key] = text
+
+    # Save structured data to JSON
+    os.makedirs("parsed_courses", exist_ok=True)
+    json_path = f"parsed_courses/{course_code}.json"
+    with open(json_path, "w", encoding="utf-8") as f:
+        json.dump(data, f, indent=2, ensure_ascii=False)
+        print(f"✅ Saved structured data to '{json_path}'")
+
+    return data
