@@ -5,3 +5,5 @@ openai
 sentence-transformers
 scikit-learn
 python-dotenv
+selenium
+webdriver-manager
