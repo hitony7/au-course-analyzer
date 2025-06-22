@@ -1,42 +1,65 @@
 import streamlit as st
-from scraper.fetch_courses import fetch_course_links  # Function to get all course URLs from the catalog
-from scraper.parse_course import parse_course         # Function to extract course details from a URL
-from ai.outline_generator import generate_outline     # Function to generate AI-based course outline
-from ai.comparison import compare_outlines            # Function to compute similarity between outlines
+from scraper.fetch_courses import fetch_course_metadata
+from scraper.parse_course import parse_course
+from ai.outline_generator import generate_outline
+from ai.comparison import compare_outlines
+from collections import defaultdict
 
-# Set title for the web application
 st.title("AU Course Analyzer")
 
-# Input field for the AU course catalog base URL
-base_url = st.text_input("Enter AU course catalog URL", "https://example.com/courses")
+# Input: AU catalog URL
+base_url = st.text_input("Enter AU course catalog URL", "")
 
-# Button to fetch course links from the given URL
+# Fetch metadata from AU catalog
 if st.button("Fetch Course Links"):
-    course_links = fetch_course_links(base_url)  # Scrape links from the page
-    st.write(f"Found {len(course_links)} courses.")  # Display number of courses found
-    st.session_state['course_links'] = course_links  # Store in session state to persist across UI actions
+    course_links = fetch_course_metadata(base_url)
+    st.write(f"Found {len(course_links)} courses.")
+    st.session_state["course_links"] = course_links
 
-# Only show course selection if links have been fetched
-if 'course_links' in st.session_state:
-    # Dropdown to select one course from the list
-    selected_course = st.selectbox("Select a course to analyze", st.session_state['course_links'])
+# If courses are available
+if "course_links" in st.session_state:
+    # Step 1: Group courses by prefix (e.g., COMP, CMIS)
+    prefix_map = defaultdict(list)
+    for course in st.session_state["course_links"]:
+        prefix = course["course_code"].split()[0]
+        prefix_map[prefix].append(course)
 
-    # Button to perform analysis on the selected course
+    # Step 2: User selects a prefix
+    selected_prefix = st.selectbox("Select a course prefix", sorted(prefix_map.keys()))
+
+    # Step 3: Show course options under that prefix
+    course_labels = [
+        f"{course['course_code']}: {course['course_name']}"
+        for course in prefix_map[selected_prefix]
+    ]
+    selected_label = st.selectbox("Select a course to analyze", course_labels)
+
+    # Step 4: Find the selected course
+    selected_course = next(
+        (
+            course
+            for course in prefix_map[selected_prefix]
+            if f"{course['course_code']}: {course['course_name']}" == selected_label
+        ),
+        None,
+    )
+
     if st.button("Analyze Selected Course"):
-        # Step 1: Scrape the course page for content
-        course_data = parse_course(selected_course)
+        # Step 5: Scrape course details
+        course_data = parse_course(selected_course["url"])
         st.subheader("Course Info")
-        st.json(course_data)  # Display the raw scraped course data
+        st.json(course_data)
 
-        # Step 2: Use AI to generate a recommended outline
-        ai_outline = generate_outline(course_data["title"], course_data["learning_outcomes"])
+        # Step 6: Generate AI outline
+        ai_outline = generate_outline(
+            course_data["title"], course_data["learning_outcomes"]
+        )
         st.subheader("AI Generated Outline")
         st.write(ai_outline)
 
-        # Step 3: Compare AI outline vs actual topics using embedding similarity
+        # Step 7: Compare outlines
         actual_outline_text = "\n".join(course_data["topics"])
         similarity_score = compare_outlines(actual_outline_text, ai_outline)
 
-        # Step 4: Show similarity score (0 to 1 range)
         st.subheader("Similarity Score")
-        st.write(f"{similarity_score:.2f}")  # e.g., 0.78 indicates high similari_
+        st.write(f"{similarity_score:.2f}")
