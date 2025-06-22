@@ -29,3 +29,6 @@ Thumbs.db
 au_course_links.txt
 au_courses.json
 au_full_page.html
+
+parsed_courses/
+rendered_pages/
