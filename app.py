@@ -51,9 +51,7 @@ if "course_links" in st.session_state:
         st.json(course_data)
 
         # Step 6: Generate AI outline
-        ai_outline = generate_outline(
-            course_data["title"], course_data["learning_outcomes"]
-        )
+        ai_outline = generate_outline(course_data)
         st.subheader("AI Generated Outline")
         st.write(ai_outline)
 
