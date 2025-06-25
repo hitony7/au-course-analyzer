@@ -56,8 +56,47 @@ if "course_links" in st.session_state:
         st.write(ai_outline)
 
         # Step 7: Compare outlines
-        actual_outline_text = "\n".join(course_data["topics"])
+        # Combine relevant course fields into a single string for comparison
+        actual_outline_text = "\n".join(
+            [
+                course_data.get("course_title", ""),
+                course_data.get("outline", ""),
+                course_data.get("learning_outcomes", ""),
+            ]
+        )
+
         similarity_score = compare_outlines(actual_outline_text, ai_outline)
 
-        st.subheader("Similarity Score")
-        st.write(f"{similarity_score:.2f}")
+st.subheader("Similarity Score")
+st.write(f"**{similarity_score:.2f}**")
+
+# Interpretation of score
+if similarity_score > 0.8:
+    st.success(
+        "High similarity: The AI-generated outline is closely aligned with the actual course content."
+    )
+elif similarity_score > 0.5:
+    st.info(
+        "Moderate similarity: The AI outline shares some concepts with the real outline but may miss key areas."
+    )
+else:
+    st.warning(
+        "Low similarity: The AI outline differs significantly from the actual course content. Review is recommended."
+    )
+
+# Explanation of how similarity is determined
+with st.expander("ℹ️ How this score is calculated"):
+    st.markdown(
+        """
+    The similarity score is based on **cosine similarity** between the AI-generated outline and the actual course outline.
+    
+    Both outlines are first converted into high-dimensional vectors using a transformer model called **MiniLM**.
+    
+    These embeddings capture the **semantic meaning** of text (i.e., what it's about), not just keywords. Cosine similarity then measures how closely aligned the two vectors are:
+    
+    - **1.0** = perfect semantic match  
+    - **0.0** = no semantic similarity  
+    
+    This lets us compare outlines even if the wording is different but the underlying ideas are similar.
+    """
+    )
