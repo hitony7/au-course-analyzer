@@ -94,7 +94,10 @@ if "course_links" in st.session_state:
 
                 - **1.0** = perfect semantic match  
                 - **0.0** = no semantic similarity  
-
+                
+                For more information on the MiniLM model used for semantic embeddings, visit:
+                https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2
+                
                 """
             )
 
