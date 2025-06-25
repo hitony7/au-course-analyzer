@@ -95,7 +95,6 @@ if "course_links" in st.session_state:
                 - **1.0** = perfect semantic match  
                 - **0.0** = no semantic similarity  
 
-                This lets us compare outlines even if the wording is different but the underlying ideas are similar.
                 """
             )
 
@@ -103,6 +102,20 @@ if "course_links" in st.session_state:
         result = compare_outlines_keywords(actual_outline_text, ai_outline)
 
         st.subheader("Keyword Similarity Score")
+        with st.expander("ℹ️ How this score is calculated"):
+            st.markdown(
+                """
+            The keyword similarity score is based on **Jaccard similarity**, which measures the overlap between two sets of keywords.
+
+            For each outline, we first extract keywords by tokenizing the text, removing stopwords, and counting the occurrences of each word. The top 10 most common words are considered the most representative keywords for each outline.
+
+            The Jaccard similarity is then calculated as the size of the intersection (common keywords) divided by the size of the union (all unique keywords) of the two sets. This score ranges from:
+
+            - **1.0** = all keywords are identical  
+            - **0.0** = no keywords are shared  
+
+            """
+            )
         st.write(f"{result['similarity_score']:.2f}")
 
         st.subheader("Word Counts")
